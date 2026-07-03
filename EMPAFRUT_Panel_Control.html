@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>EMPAFRUT — Panel de Control de Procesos</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  :root{
+    --forest:#1E5B34;
+    --forest-dark:#163F25;
+    --moss:#6FA05A;
+    --orange:#D9822B;
+    --blue:#2C5F8A;
+    --purple:#5B4B8A;
+    --bg:#F6F8F5;
+    --card:#FFFFFF;
+    --line:#E2E8E0;
+    --text:#20242A;
+    --muted:#6B756C;
+    --bad:#B0392A;
+    --mid:#D9822B;
+    --good:#1E6B3C;
+    font-family: "Calibri","Segoe UI",Arial,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    padding:0 0 60px 0;
+  }
+  .topbar{
+    background:linear-gradient(135deg, var(--forest-dark), var(--forest));
+    color:#fff; padding:22px 28px 20px;
+    display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:14px;
+  }
+  .topbar h1{margin:0; font-size:22px; letter-spacing:.3px;}
+  .topbar .sub{margin:4px 0 0; font-size:12.5px; color:#CFE0D2; max-width:560px;}
+  .userbox{display:flex; flex-direction:column; gap:6px; align-items:flex-end;}
+  .userbox input{
+    background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.35);
+    color:#fff; padding:6px 10px; border-radius:6px; font-size:12.5px; width:190px;
+  }
+  .userbox input::placeholder{color:#CFE0D2;}
+  .savestate{font-size:11px; color:#CFE0D2; display:flex; align-items:center; gap:6px;}
+  .dot{width:7px; height:7px; border-radius:50%; background:#6FE08A; display:inline-block;}
+  .dot.saving{background:#F2C94C; animation:pulse 1s infinite;}
+  @keyframes pulse{0%{opacity:.4}50%{opacity:1}100%{opacity:.4}}
+
+  .summary{
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
+    gap:12px; padding:18px 28px 0;
+  }
+  .sumcard{
+    background:var(--card); border:1px solid var(--line); border-radius:10px;
+    padding:14px 16px;
+  }
+  .sumcard .label{font-size:11px; text-transform:uppercase; letter-spacing:.6px; color:var(--muted); font-weight:600;}
+  .sumcard .value{font-size:26px; font-weight:700; color:var(--forest-dark); margin-top:4px;}
+  .sumcard .hint{font-size:11px; color:var(--muted); margin-top:2px;}
+
+  .toolbar{
+    display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;
+    padding:18px 28px 0;
+  }
+
+  .bottleneck-section{
+    margin:18px 28px 0; background:#FFF7F0; border:1px solid #F1D9BC; border-radius:12px; padding:16px 18px;
+  }
+  .bn-headrow{display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:6px; margin-bottom:10px;}
+  .bn-headrow .colhead{color:#8A4A16;}
+  .bn-hint{font-size:11px; color:#9B6A3A;}
+  .bn-line{
+    display:flex; align-items:center; gap:14px; background:#fff; border:1px solid #F1D9BC; border-radius:10px;
+    padding:12px 14px; margin-bottom:12px;
+  }
+  .bn-line .bn-icon{
+    width:38px; height:38px; border-radius:50%; background:var(--bad); color:#fff; display:flex; align-items:center;
+    justify-content:center; font-size:18px; flex:none;
+  }
+  .bn-line .bn-title{font-size:13px; font-weight:700; color:var(--text);}
+  .bn-line .bn-desc{font-size:11.5px; color:var(--muted); margin-top:2px;}
+  .bn-list{display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:10px;}
+  .bn-card{
+    background:#fff; border:1px solid #F1D9BC; border-left:4px solid var(--bad); border-radius:8px; padding:10px 12px;
+  }
+  .bn-card .bn-rank{font-size:10px; font-weight:700; color:var(--bad); text-transform:uppercase; letter-spacing:.4px;}
+  .bn-card .bn-name{font-size:13.5px; font-weight:700; margin:3px 0 5px;}
+  .bn-card ul{margin:0; padding-left:16px; font-size:11px; color:var(--muted);}
+  .bn-card ul li{margin-bottom:2px;}
+  .bn-empty{font-size:12px; color:var(--muted); font-style:italic;}
+  .card-warning{
+    display:inline-flex; align-items:center; gap:4px; font-size:9.5px; font-weight:700; color:#fff;
+    background:var(--bad); padding:2px 8px; border-radius:20px; margin-bottom:6px; margin-left:6px;
+  }
+  .chips{display:flex; gap:8px; flex-wrap:wrap;}
+  .chip{
+    border:1px solid var(--line); background:#fff; padding:6px 13px; border-radius:20px;
+    font-size:12.5px; cursor:pointer; color:var(--muted); font-weight:600; user-select:none;
+  }
+  .chip.active{background:var(--forest); color:#fff; border-color:var(--forest);}
+  .actions{display:flex; gap:8px;}
+  .btn{
+    border:none; padding:8px 14px; border-radius:7px; font-size:12.5px; font-weight:600;
+    cursor:pointer; color:#fff; background:var(--forest);
+  }
+  .btn.secondary{background:#fff; color:var(--forest); border:1px solid var(--forest);}
+  .btn.ghost{background:#fff; color:var(--muted); border:1px solid var(--line);}
+
+  .grid{
+    display:grid; grid-template-columns:1fr; gap:14px; padding:18px 28px 0;
+  }
+  .pcard{
+    background:var(--card); border:1px solid var(--line); border-left:6px solid var(--forest);
+    border-radius:10px; padding:16px 18px; display:grid;
+    grid-template-columns: 1.5fr 1.7fr 1.6fr 1fr; gap:18px;
+  }
+  .pcard.tipo-estrategico{border-left-color:var(--forest);}
+  .pcard.tipo-operativo{border-left-color:var(--orange);}
+  .pcard.tipo-apoyo{border-left-color:var(--blue);}
+
+  .colhead{font-size:10.5px; text-transform:uppercase; letter-spacing:.6px; color:var(--muted); font-weight:700; margin-bottom:8px;}
+
+  .idcol .badge{
+    display:inline-block; font-size:10px; font-weight:700; padding:2px 8px; border-radius:20px;
+    color:#fff; margin-bottom:6px; text-transform:uppercase; letter-spacing:.4px;
+  }
+  .badge.estrategico{background:var(--forest);}
+  .badge.operativo{background:var(--orange);}
+  .badge.apoyo{background:var(--blue);}
+  .pname{
+    font-size:16px; font-weight:700; border:none; background:transparent; width:100%;
+    color:var(--text); padding:2px 0; border-bottom:1px dashed transparent;
+  }
+  .pname:focus{outline:none; border-bottom:1px dashed var(--forest);}
+  .resp{margin-top:8px;}
+  .resp label{font-size:10.5px; color:var(--muted); display:block; margin-bottom:2px;}
+  .resp input{
+    width:100%; font-size:12.5px; padding:5px 7px; border:1px solid var(--line); border-radius:6px;
+    color:var(--text); background:#FAFBFA;
+  }
+  .typesel{margin-top:8px; font-size:11.5px;}
+  .typesel select{
+    font-size:11.5px; padding:4px 6px; border-radius:6px; border:1px solid var(--line); background:#FAFBFA;
+  }
+
+  .kpi-row{display:flex; flex-direction:column; gap:10px;}
+  .kpi{background:#FAFBF9; border:1px solid var(--line); border-radius:8px; padding:8px 10px;}
+  .kpi label{font-size:10px; color:var(--muted); display:block; margin-bottom:3px;}
+  .kpi input.kname{
+    width:100%; font-size:12px; font-weight:600; border:none; background:transparent; padding:1px 0; color:var(--text);
+  }
+  .kpi input.kname:focus{outline:none;}
+  .kpi .vals{display:flex; gap:8px; margin-top:5px;}
+  .kpi .vals div{flex:1;}
+  .kpi .vals label{font-size:9.5px;}
+  .kpi .vals input{
+    width:100%; font-size:12px; padding:4px 6px; border:1px solid var(--line); border-radius:5px; background:#fff;
+  }
+  .kpi .miniprog{height:5px; border-radius:3px; background:#E7EBE5; margin-top:6px; overflow:hidden;}
+  .kpi .miniprog span{display:block; height:100%; background:var(--forest);}
+
+  .timebox{display:flex; flex-direction:column; gap:8px;}
+  .timegrid{display:grid; grid-template-columns:1fr 1fr; gap:8px;}
+  .timegrid div label{font-size:9.5px; color:var(--muted); display:block; margin-bottom:2px;}
+  .timegrid input{
+    width:100%; font-size:11.5px; padding:5px 6px; border:1px solid var(--line); border-radius:6px; background:#FAFBFA;
+  }
+  .bars{margin-top:4px;}
+  .barrow{display:flex; align-items:center; gap:6px; margin-bottom:4px;}
+  .barrow .barlabel{font-size:9.5px; color:var(--muted); width:34px;}
+  .barrow .track{flex:1; background:#EEF1EC; border-radius:4px; height:9px; overflow:hidden;}
+  .barrow .track span{display:block; height:100%; border-radius:4px;}
+  .barrow.plan .track span{background:#9FB6A8;}
+  .barrow.real .track span{background:var(--orange);}
+  .barrow .barval{font-size:9.5px; color:var(--muted); width:44px; text-align:right;}
+  .deviation{font-size:11px; font-weight:700; margin-top:2px;}
+  .deviation.pos{color:var(--bad);}
+  .deviation.neg{color:var(--good);}
+  .deviation.zero{color:var(--muted);}
+
+  .rightcol{display:flex; flex-direction:column; gap:10px;}
+  .avancebox label{font-size:10px; color:var(--muted); display:block; margin-bottom:4px;}
+  .avancebox .avnum{font-size:22px; font-weight:800; color:var(--forest-dark);}
+  .avancebox input[type=range]{width:100%; accent-color:var(--forest);}
+  .statusbadge{
+    display:inline-block; font-size:11px; font-weight:700; padding:4px 10px; border-radius:20px; color:#fff; margin-top:4px;
+  }
+  .statusbadge.critico{background:var(--bad);}
+  .statusbadge.progreso{background:var(--mid);}
+  .statusbadge.meta{background:var(--good);}
+  .notes textarea{
+    width:100%; min-height:56px; font-size:11.5px; border:1px solid var(--line); border-radius:6px;
+    padding:6px 8px; resize:vertical; font-family:inherit; background:#FAFBFA;
+  }
+  .notes label{font-size:10px; color:var(--muted); display:block; margin-bottom:3px;}
+
+  footer{
+    text-align:center; color:var(--muted); font-size:11px; padding:26px 20px 0;
+  }
+
+  @media (max-width: 980px){
+    .pcard{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div>
+    <h1>EMPAFRUT — Panel de Control de Procesos</h1>
+    <p class="sub">Seguimiento en vivo de los 10 procesos relevantes: indicadores, tiempos planificados vs. reales y avance. Los cambios se guardan automáticamente y son visibles para todo el equipo.</p>
+  </div>
+  <div class="userbox">
+    <input id="userName" placeholder="Tu nombre (para identificar tus cambios)" />
+    <div class="savestate"><span class="dot" id="saveDot"></span><span id="saveText">Cargando panel compartido…</span></div>
+  </div>
+</div>
+
+<div class="summary" id="summary"></div>
+
+<div class="bottleneck-section">
+  <div class="bn-headrow">
+    <div class="colhead" style="margin:0;">⚠ Cuellos de botella detectados</div>
+    <div class="bn-hint">Calculado automáticamente a partir de tiempos, avance y cumplimiento de KPI</div>
+  </div>
+  <div id="bottleneckArea"></div>
+</div>
+
+<div class="toolbar">
+  <div class="chips" id="filterChips"></div>
+  <div class="actions">
+    <button class="btn secondary" id="btnRefresh">↻ Actualizar</button>
+    <button class="btn ghost" id="btnReset">Restaurar valores base</button>
+  </div>
+</div>
+
+<div class="grid" id="grid"></div>
+
+<footer>Panel colaborativo EMPAFRUT · Gestión por Procesos · Los datos se almacenan de forma compartida — cualquier persona con este enlace puede editarlos.</footer>
+
+<script>
+const STORAGE_KEY = "empafrut-panel-procesos-v1";
+const NAME_KEY = "empafrut-panel-username";
+
+const TYPE_LABEL = { estrategico: "Estratégico", operativo: "Operativo", apoyo: "Apoyo" };
+
+function defaultData(){
+  return {
+    updatedAt: new Date().toISOString(),
+    updatedBy: "Equipo EMPAFRUT",
+    procesos: [
+      {id:"p1", tipo:"estrategico", nombre:"Gestionar logística", responsable:"Gerencia General / Logística",
+        kpi1:{label:"% entregas OTIF (a tiempo y completas)", meta:95, real:82, dir:"up"},
+        kpi2:{label:"Costo de transporte por kg despachado (S/)", meta:0.35, real:0.41, dir:"down"},
+        fechaInicio:"2026-05-01", fechaFin:"2026-07-31",
+        tiempoPlan:8, tiempoReal:9.2, avance:75, notas:"Negociar tarifas con transportistas para reducir costo/kg."},
+      {id:"p2", tipo:"estrategico", nombre:"Garantizar la calidad", responsable:"Gerencia de Calidad",
+        kpi1:{label:"% de lotes conformes a estándar", meta:95, real:85, dir:"up"},
+        kpi2:{label:"N° de no conformidades / auditoría", meta:0, real:3, dir:"down"},
+        fechaInicio:"2026-04-01", fechaFin:"2026-12-31",
+        tiempoPlan:4, tiempoReal:4.5, avance:80, notas:"Implementar checklist digital en punto de calibrado."},
+      {id:"p3", tipo:"estrategico", nombre:"Estrategia de mejora continua", responsable:"Gerencia General",
+        kpi1:{label:"N° de mejoras implementadas / trimestre", meta:4, real:2, dir:"up"},
+        kpi2:{label:"% reducción acumulada de merma", meta:20, real:9, dir:"up"},
+        fechaInicio:"2026-04-01", fechaFin:"2026-12-31",
+        tiempoPlan:40, tiempoReal:46, avance:60, notas:"Programar taller Kaizen con jefes de línea."},
+      {id:"p4", tipo:"operativo", nombre:"Recepción de materia prima", responsable:"Jefatura de Planta",
+        kpi1:{label:"% de fruta rechazada en recepción", meta:3, real:5, dir:"down"},
+        kpi2:{label:"Tiempo promedio de descarga (min/lote)", meta:25, real:31, dir:"down"},
+        fechaInicio:"2026-05-05", fechaFin:"2026-06-30",
+        tiempoPlan:1, tiempoReal:1.2, avance:90, notas:"Agregar segunda balanza en temporada alta."},
+      {id:"p5", tipo:"operativo", nombre:"Seleccionar fruta", responsable:"Producción",
+        kpi1:{label:"% de fruta correctamente seleccionada", meta:97, real:91, dir:"up"},
+        kpi2:{label:"Tiempo de selección (min/100kg)", meta:12, real:14, dir:"down"},
+        fechaInicio:"2026-05-05", fechaFin:"2026-06-30",
+        tiempoPlan:2, tiempoReal:2.3, avance:85, notas:"Reforzar criterios visuales de madurez con el equipo nuevo."},
+      {id:"p6", tipo:"operativo", nombre:"Calibrar fruta", responsable:"Producción",
+        kpi1:{label:"% de error de calibrado", meta:3, real:6, dir:"down"},
+        kpi2:{label:"Productividad de calibrado (kg/hora)", meta:900, real:790, dir:"up"},
+        fechaInicio:"2026-05-05", fechaFin:"2026-06-30",
+        tiempoPlan:1.5, tiempoReal:1.8, avance:70, notas:"Evaluar calibradora automatizada para reducir error."},
+      {id:"p7", tipo:"operativo", nombre:"Empacar fruta", responsable:"Producción / Empaque",
+        kpi1:{label:"Productividad de empaque (cajas/hora/operario)", meta:10, real:6, dir:"up"},
+        kpi2:{label:"% de merma en empaque", meta:5, real:8, dir:"down"},
+        fechaInicio:"2026-05-05", fechaFin:"2026-06-30",
+        tiempoPlan:3, tiempoReal:3.4, avance:65, notas:"Incentivos por caja empacada; mantenimiento preventivo de línea."},
+      {id:"p8", tipo:"apoyo", nombre:"Administrar ventas", responsable:"Administración de Ventas",
+        kpi1:{label:"% de cumplimiento de pedidos entregados", meta:95, real:88, dir:"up"},
+        kpi2:{label:"Tiempo de ciclo pedido–entrega (horas)", meta:48, real:52, dir:"down"},
+        fechaInicio:"2026-04-01", fechaFin:"2026-12-31",
+        tiempoPlan:6, tiempoReal:6.5, avance:75, notas:"Priorizar cuentas clave en temporada de exportación."},
+      {id:"p9", tipo:"apoyo", nombre:"Capacitar personal", responsable:"Gestión de Personal",
+        kpi1:{label:"N° de horas de capacitación / empleado / año", meta:40, real:14, dir:"up"},
+        kpi2:{label:"% de personal capacitado y aprobado (≥80%)", meta:100, real:20, dir:"up"},
+        fechaInicio:"2026-04-01", fechaFin:"2026-12-31",
+        tiempoPlan:20, tiempoReal:12, avance:65, notas:"Alianza con SENASA y PROMPERÚ para plan semestral de BPA."},
+      {id:"p10", tipo:"apoyo", nombre:"Gestionar finanzas", responsable:"Gerencia Administrativa",
+        kpi1:{label:"Margen bruto (%)", meta:30, real:22, dir:"up"},
+        kpi2:{label:"Plazo promedio de cuentas por cobrar (días)", meta:30, real:38, dir:"down"},
+        fechaInicio:"2026-04-01", fechaFin:"2026-12-31",
+        tiempoPlan:10, tiempoReal:11, avance:70, notas:"Revisar condiciones de pago con clientes recurrentes."}
+    ]
+  };
+}
+
+// IDs of the 4 sequential operational processes that make up the physical packing line
+const LINE_SEQUENCE = ["p4","p5","p6","p7"];
+
+function kpiCompliance(kpi){
+  const dir = kpi.dir || "up";
+  const meta = Number(kpi.meta||0), real = Number(kpi.real||0);
+  if(dir === "up"){
+    if(meta <= 0) return real > 0 ? 100 : 0;
+    return Math.max(0, (real/meta)*100);
+  } else {
+    if(real <= 0) return 100;
+    if(meta <= 0) return real === 0 ? 100 : 0;
+    return Math.max(0, (meta/real)*100);
+  }
+}
+
+let state = null;
+let activeFilter = "todos";
+let saveTimer = null;
+let pollTimer = null;
+let hasFocusInGrid = false;
+
+const $ = sel => document.querySelector(sel);
+const grid = $("#grid");
+const summaryEl = $("#summary");
+const chipsEl = $("#filterChips");
+const saveDot = $("#saveDot");
+const saveText = $("#saveText");
+const userNameInput = $("#userName");
+
+function statusFromAvance(a){
+  if(a < 60) return {cls:"critico", label:"Crítico"};
+  if(a < 85) return {cls:"progreso", label:"En progreso"};
+  return {cls:"meta", label:"En meta"};
+}
+
+function fmt(n){
+  if(n === null || n === undefined || isNaN(n)) return "0";
+  return (Math.round(n*100)/100).toString();
+}
+
+async function loadName(){
+  try{
+    const r = await window.storage.get(NAME_KEY, false);
+    if(r && r.value) userNameInput.value = r.value;
+  }catch(e){ /* not set yet */ }
+}
+userNameInput.addEventListener("change", async () => {
+  try{ await window.storage.set(NAME_KEY, userNameInput.value, false); }catch(e){}
+});
+
+async function loadData(showSpinner){
+  if(showSpinner){ saveDot.classList.add("saving"); saveText.textContent = "Sincronizando…"; }
+  try{
+    const r = await window.storage.get(STORAGE_KEY, true);
+    if(r && r.value){
+      state = JSON.parse(r.value);
+    } else {
+      state = defaultData();
+      await window.storage.set(STORAGE_KEY, JSON.stringify(state), true);
+    }
+  }catch(e){
+    state = defaultData();
+    try{ await window.storage.set(STORAGE_KEY, JSON.stringify(state), true); }catch(e2){}
+  }
+  // backward compatibility: fill missing kpi direction on older saved panels
+  state.procesos.forEach(p => {
+    if(!p.kpi1.dir) p.kpi1.dir = "up";
+    if(!p.kpi2.dir) p.kpi2.dir = "up";
+  });
+  saveDot.classList.remove("saving");
+  renderAll();
+  updateSaveText();
+}
+
+function updateSaveText(){
+  if(!state) return;
+  const d = new Date(state.updatedAt);
+  const diffMin = Math.round((Date.now() - d.getTime())/60000);
+  let when = "justo ahora";
+  if(diffMin === 1) when = "hace 1 min";
+  else if(diffMin > 1 && diffMin < 60) when = `hace ${diffMin} min`;
+  else if(diffMin >= 60) when = d.toLocaleString("es-PE",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"});
+  saveText.textContent = `Guardado ${when} por ${state.updatedBy || "alguien del equipo"}`;
+}
+
+function scheduleSave(){
+  saveDot.classList.add("saving");
+  saveText.textContent = "Guardando…";
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () => {
+    state.updatedAt = new Date().toISOString();
+    state.updatedBy = userNameInput.value.trim() || "Alguien del equipo";
+    try{
+      await window.storage.set(STORAGE_KEY, JSON.stringify(state), true);
+    }catch(e){}
+    saveDot.classList.remove("saving");
+    updateSaveText();
+  }, 550);
+}
+
+function computeSummary(){
+  const procs = state.procesos;
+  const avgAvance = procs.reduce((a,p)=>a+Number(p.avance||0),0) / procs.length;
+  const enMeta = procs.filter(p=>Number(p.avance||0) >= 85).length;
+  const criticos = procs.filter(p=>Number(p.avance||0) < 60).length;
+  const totalPlan = procs.reduce((a,p)=>a+Number(p.tiempoPlan||0),0);
+  const totalReal = procs.reduce((a,p)=>a+Number(p.tiempoReal||0),0);
+  const desviacion = totalPlan === 0 ? 0 : ((totalReal-totalPlan)/totalPlan)*100;
+  const kpiCompliances = [];
+  procs.forEach(p => { kpiCompliances.push(kpiCompliance(p.kpi1)); kpiCompliances.push(kpiCompliance(p.kpi2)); });
+  const avgKpiCompliance = kpiCompliances.reduce((a,v)=>a+Math.min(v,120),0) / kpiCompliances.length;
+  const kpisFuera = kpiCompliances.filter(v => v < 100).length;
+  const lineProcs = LINE_SEQUENCE.map(id => procs.find(p=>p.id===id)).filter(Boolean);
+  const leadPlan = lineProcs.reduce((a,p)=>a+Number(p.tiempoPlan||0),0);
+  const leadReal = lineProcs.reduce((a,p)=>a+Number(p.tiempoReal||0),0);
+  return {avgAvance, enMeta, criticos, totalPlan, totalReal, desviacion, avgKpiCompliance, kpisFuera, totalKpis: kpiCompliances.length, leadPlan, leadReal};
+}
+
+// Composite bottleneck score per process: combines time overrun, low progress and KPI shortfall.
+function computeBottlenecks(){
+  const procs = state.procesos;
+  const scored = procs.map(p => {
+    const plan = Number(p.tiempoPlan||0), real = Number(p.tiempoReal||0);
+    const devPct = plan > 0 ? ((real-plan)/plan)*100 : 0;
+    const timeScore = Math.max(0, Math.min(100, devPct));
+    const avanceScore = Math.max(0, 100 - Number(p.avance||0));
+    const c1 = Math.min(100, kpiCompliance(p.kpi1));
+    const c2 = Math.min(100, kpiCompliance(p.kpi2));
+    const kpiScore = Math.max(0, 100 - ((c1+c2)/2));
+    const score = timeScore*0.4 + avanceScore*0.3 + kpiScore*0.3;
+    const reasons = [];
+    if(devPct > 5) reasons.push(`Tiempo real ${devPct>0?"+":""}${fmt(devPct)}% sobre lo planificado`);
+    if(Number(p.avance||0) < 60) reasons.push(`Avance bajo (${p.avance}%)`);
+    if(c1 < 85) reasons.push(`KPI "${p.kpi1.label}" al ${fmt(c1)}% de cumplimiento`);
+    if(c2 < 85) reasons.push(`KPI "${p.kpi2.label}" al ${fmt(c2)}% de cumplimiento`);
+    return {p, score, devPct, reasons};
+  });
+  scored.sort((a,b)=>b.score-a.score);
+  const lineProcs = LINE_SEQUENCE.map(id => procs.find(x=>x.id===id)).filter(Boolean);
+  let lineBottleneck = null;
+  if(lineProcs.length){
+    lineBottleneck = lineProcs.reduce((max,p)=> Number(p.tiempoReal||0) > Number(max.tiempoReal||0) ? p : max, lineProcs[0]);
+  }
+  return {ranked: scored, lineBottleneck};
+}
+
+function renderSummary(){
+  const s = computeSummary();
+  summaryEl.innerHTML = `
+    <div class="sumcard"><div class="label">Avance promedio</div><div class="value">${fmt(s.avgAvance)}%</div><div class="hint">de los 10 procesos</div></div>
+    <div class="sumcard"><div class="label">Procesos en meta (≥85%)</div><div class="value" style="color:var(--good)">${s.enMeta}</div><div class="hint">de 10 procesos</div></div>
+    <div class="sumcard"><div class="label">Procesos críticos (&lt;60%)</div><div class="value" style="color:var(--bad)">${s.criticos}</div><div class="hint">requieren atención inmediata</div></div>
+    <div class="sumcard"><div class="label">Tiempo planificado vs real</div><div class="value">${fmt(s.totalPlan)}h → ${fmt(s.totalReal)}h</div>
+      <div class="hint" style="color:${s.desviacion>0?'var(--bad)':'var(--good)'}">${s.desviacion>0?"+":""}${fmt(s.desviacion)}% de desviación</div></div>
+    <div class="sumcard"><div class="label">Cumplimiento promedio de KPI</div><div class="value">${fmt(s.avgKpiCompliance)}%</div><div class="hint">${s.kpisFuera} de ${s.totalKpis} indicadores fuera de meta</div></div>
+    <div class="sumcard"><div class="label">Lead time línea de empaque</div><div class="value">${fmt(s.leadPlan)}h → ${fmt(s.leadReal)}h</div><div class="hint">Recepción → Selección → Calibrado → Empaque</div></div>
+  `;
+}
+
+const bottleneckArea = $("#bottleneckArea");
+
+function renderBottlenecks(){
+  const {ranked, lineBottleneck} = computeBottlenecks();
+  const top = ranked.filter(r => r.score >= 25).slice(0, 3);
+
+  let lineHTML = "";
+  if(lineBottleneck){
+    const plan = Number(lineBottleneck.tiempoPlan||0), real = Number(lineBottleneck.tiempoReal||0);
+    lineHTML = `
+      <div class="bn-line">
+        <div class="bn-icon">⛔</div>
+        <div>
+          <div class="bn-title">Cuello de botella de la línea de empaque: ${escapeHtml(lineBottleneck.nombre)}</div>
+          <div class="bn-desc">Es el paso más lento de la cadena Recepción → Selección → Calibrado → Empaque (${fmt(real)}h reales vs. ${fmt(plan)}h planificadas). Este paso limita la capacidad de toda la línea, aunque los demás procesos vayan más rápido.</div>
+        </div>
+      </div>`;
+  }
+
+  let listHTML = "";
+  if(top.length === 0){
+    listHTML = `<div class="bn-empty">No se detectan cuellos de botella relevantes con los datos actuales — todos los procesos están dentro de rangos aceptables de tiempo, avance y KPI.</div>`;
+  } else {
+    listHTML = `<div class="bn-list">` + top.map((r,i) => `
+      <div class="bn-card">
+        <div class="bn-rank">#${i+1} · Índice de criticidad ${fmt(r.score)}</div>
+        <div class="bn-name">${escapeHtml(r.p.nombre)}</div>
+        <ul>${r.reasons.map(x=>`<li>${escapeHtml(x)}</li>`).join("") || "<li>Desviación combinada de tiempo, avance y KPI.</li>"}</ul>
+      </div>
+    `).join("") + `</div>`;
+  }
+
+  bottleneckArea.innerHTML = lineHTML + listHTML;
+  return new Set(top.map(r=>r.p.id));
+}
+
+function renderChips(){
+  const counts = {todos: state.procesos.length, estrategico:0, operativo:0, apoyo:0};
+  state.procesos.forEach(p => counts[p.tipo]++);
+  const defs = [["todos","Todos"],["estrategico","Estratégicos"],["operativo","Operativos"],["apoyo","Apoyo"]];
+  chipsEl.innerHTML = defs.map(([key,label]) =>
+    `<div class="chip ${activeFilter===key?'active':''}" data-filter="${key}">${label} (${counts[key]})</div>`
+  ).join("");
+  chipsEl.querySelectorAll(".chip").forEach(c => c.addEventListener("click", () => {
+    activeFilter = c.getAttribute("data-filter");
+    renderGrid();
+    renderChips();
+  }));
+}
+
+function fieldUpdate(id, path, value){
+  const p = state.procesos.find(x=>x.id===id);
+  if(!p) return;
+  const parts = path.split(".");
+  let obj = p;
+  for(let i=0;i<parts.length-1;i++) obj = obj[parts[i]];
+  obj[parts[parts.length-1]] = value;
+  scheduleSave();
+}
+
+function renderGrid(){
+  const active = document.activeElement;
+  const activeId = active && active.dataset ? active.dataset.pid : null;
+  const activeField = active && active.dataset ? active.dataset.field : null;
+  const selStart = active && active.selectionStart !== undefined ? active.selectionStart : null;
+
+  const bottleneckIds = renderBottlenecks();
+  const list = state.procesos.filter(p => activeFilter==="todos" || p.tipo===activeFilter);
+  grid.innerHTML = list.map(p => cardHTML(p, bottleneckIds.has(p.id))).join("");
+  attachHandlers();
+  renderSummary();
+
+  if(activeId && activeField){
+    const el = grid.querySelector(`[data-pid="${activeId}"][data-field="${activeField}"]`);
+    if(el){ el.focus(); if(selStart!==null && el.setSelectionRange) try{el.setSelectionRange(selStart, selStart);}catch(e){} }
+  }
+}
+
+function timeBar(labelText, value, max, cls){
+  const pct = max<=0 ? 0 : Math.min(100, (value/max)*100);
+  return `<div class="barrow ${cls}"><div class="barlabel">${labelText}</div><div class="track"><span style="width:${pct}%"></span></div><div class="barval">${fmt(value)}h</div></div>`;
+}
+
+function cardHTML(p, isBottleneck){
+  const st = statusFromAvance(Number(p.avance||0));
+  const maxTime = Math.max(Number(p.tiempoPlan||0), Number(p.tiempoReal||0), 1);
+  const dev = Number(p.tiempoPlan||0)===0 ? 0 : ((Number(p.tiempoReal||0)-Number(p.tiempoPlan||0))/Number(p.tiempoPlan||0))*100;
+  const devCls = dev > 2 ? "pos" : (dev < -2 ? "neg" : "zero");
+  const devSign = dev > 0 ? "+" : "";
+  const k1pct = Math.min(100, kpiCompliance(p.kpi1));
+  const k2pct = Math.min(100, kpiCompliance(p.kpi2));
+
+  return `
+  <div class="pcard tipo-${p.tipo}">
+    <div class="idcol">
+      <span class="badge ${p.tipo}">${TYPE_LABEL[p.tipo]}</span>
+      ${isBottleneck ? `<span class="card-warning">⚠ Cuello de botella</span>` : ""}
+      <input class="pname" data-pid="${p.id}" data-field="nombre" value="${escapeHtml(p.nombre)}" />
+      <div class="resp">
+        <label>Responsable / Área</label>
+        <input data-pid="${p.id}" data-field="responsable" value="${escapeHtml(p.responsable)}" />
+      </div>
+      <div class="typesel">
+        <label style="font-size:10px;color:var(--muted);display:block;margin-bottom:2px;">Tipo de proceso</label>
+        <select data-pid="${p.id}" data-field="tipo">
+          <option value="estrategico" ${p.tipo==="estrategico"?"selected":""}>Estratégico</option>
+          <option value="operativo" ${p.tipo==="operativo"?"selected":""}>Operativo</option>
+          <option value="apoyo" ${p.tipo==="apoyo"?"selected":""}>Apoyo</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="kpicol">
+      <div class="colhead">Indicadores (KPI)</div>
+      <div class="kpi-row">
+        <div class="kpi">
+          <input class="kname" data-pid="${p.id}" data-field="kpi1.label" value="${escapeHtml(p.kpi1.label)}" />
+          <div class="vals">
+            <div><label>Meta</label><input type="number" step="0.01" data-pid="${p.id}" data-field="kpi1.meta" value="${p.kpi1.meta}"></div>
+            <div><label>Real</label><input type="number" step="0.01" data-pid="${p.id}" data-field="kpi1.real" value="${p.kpi1.real}"></div>
+          </div>
+          <div class="miniprog"><span style="width:${k1pct}%; background:${k1pct>=85?'var(--good)':k1pct>=60?'var(--mid)':'var(--bad)'}"></span></div>
+        </div>
+        <div class="kpi">
+          <input class="kname" data-pid="${p.id}" data-field="kpi2.label" value="${escapeHtml(p.kpi2.label)}" />
+          <div class="vals">
+            <div><label>Meta</label><input type="number" step="0.01" data-pid="${p.id}" data-field="kpi2.meta" value="${p.kpi2.meta}"></div>
+            <div><label>Real</label><input type="number" step="0.01" data-pid="${p.id}" data-field="kpi2.real" value="${p.kpi2.real}"></div>
+          </div>
+          <div class="miniprog"><span style="width:${k2pct}%; background:${k2pct>=85?'var(--good)':k2pct>=60?'var(--mid)':'var(--bad)'}"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="timecol">
+      <div class="colhead">Tiempos</div>
+      <div class="timebox">
+        <div class="timegrid">
+          <div><label>Fecha inicio</label><input type="date" data-pid="${p.id}" data-field="fechaInicio" value="${p.fechaInicio}"></div>
+          <div><label>Fecha fin</label><input type="date" data-pid="${p.id}" data-field="fechaFin" value="${p.fechaFin}"></div>
+          <div><label>Tiempo planif. (h)</label><input type="number" step="0.1" data-pid="${p.id}" data-field="tiempoPlan" value="${p.tiempoPlan}"></div>
+          <div><label>Tiempo real (h)</label><input type="number" step="0.1" data-pid="${p.id}" data-field="tiempoReal" value="${p.tiempoReal}"></div>
+        </div>
+        <div class="bars">
+          ${timeBar("Plan", Number(p.tiempoPlan||0), maxTime, "plan")}
+          ${timeBar("Real", Number(p.tiempoReal||0), maxTime, "real")}
+        </div>
+        <div class="deviation ${devCls}">${devSign}${fmt(dev)}% vs. planificado</div>
+      </div>
+    </div>
+
+    <div class="rightcol">
+      <div class="avancebox">
+        <label>Avance del proceso</label>
+        <div class="avnum">${p.avance}%</div>
+        <input type="range" min="0" max="100" data-pid="${p.id}" data-field="avance" value="${p.avance}">
+        <span class="statusbadge ${st.cls}">${st.label}</span>
+      </div>
+      <div class="notes">
+        <label>Notas / próxima acción</label>
+        <textarea data-pid="${p.id}" data-field="notas">${escapeHtml(p.notas||"")}</textarea>
+      </div>
+    </div>
+  </div>`;
+}
+
+function escapeHtml(s){
+  return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+function attachHandlers(){
+  grid.querySelectorAll("[data-pid]").forEach(el => {
+    const evt = (el.tagName === "SELECT" || el.type === "range" || el.type==="date") ? "change" : "input";
+    el.addEventListener(evt, () => {
+      const id = el.dataset.pid, field = el.dataset.field;
+      let val = el.value;
+      if(el.type === "number" || el.type === "range") val = parseFloat(val) || 0;
+      fieldUpdate(id, field, val);
+      if(["avance","tiempoPlan","tiempoReal","kpi1.meta","kpi1.real","kpi2.meta","kpi2.real"].includes(field)){
+        renderGrid();
+      } else if(field === "tipo"){
+        renderGrid();
+        renderChips();
+      }
+      renderSummary();
+    });
+  });
+}
+
+$("#btnRefresh").addEventListener("click", () => loadData(true));
+$("#btnReset").addEventListener("click", async () => {
+  if(!confirm("Esto restaurará los valores base para todos los usuarios del panel. ¿Continuar?")) return;
+  state = defaultData();
+  state.updatedBy = userNameInput.value.trim() || "Alguien del equipo";
+  saveDot.classList.add("saving"); saveText.textContent = "Restaurando…";
+  try{ await window.storage.set(STORAGE_KEY, JSON.stringify(state), true); }catch(e){}
+  saveDot.classList.remove("saving");
+  renderAll();
+  updateSaveText();
+});
+
+function renderAll(){
+  renderChips();
+  renderGrid();
+  renderSummary();
+}
+
+grid.addEventListener("focusin", () => hasFocusInGrid = true);
+grid.addEventListener("focusout", () => hasFocusInGrid = false);
+
+(async function init(){
+  await loadName();
+  await loadData(true);
+  pollTimer = setInterval(() => {
+    if(!hasFocusInGrid) loadData(false);
+  }, 12000);
+  setInterval(updateSaveText, 30000);
+})();
+</script>
+</body>
+</html>
